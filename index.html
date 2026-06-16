@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dunia Cermin: Hardcore</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #f8f9fa;
+            touch-action: none;
+            overscroll-behavior: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            height: 100dvh;
+            width: 100vw;
+            color: #5a5a5a;
+        }
+
+        /* Container game menyesuaikan tinggi layar HP (Responsive & Simetris) */
+        .main-wrapper {
+            width: 100%;
+            max-width: min(300px, 42dvh); 
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        /* Batas area swipe agar tombol di luarnya tetap bisa diklik */
+        #game-area {
+            touch-action: none;
+        }
+
+        .board-container {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: inset 0 4px 10px rgba(0,0,0,0.05);
+        }
+
+        .grid-bg {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(5, 1fr);
+            width: 100%;
+            height: 100%;
+        }
+
+        .cell {
+            width: 100%;
+            height: 100%;
+            border: 1px solid rgba(0,0,0,0.02);
+            box-sizing: border-box;
+        }
+
+        /* Warna Pastel Original */
+        #board-top { background-color: #fff0f3; }
+        #board-top .cell-wall { background-color: #ffb3c1; box-shadow: inset 0 -3px 0 rgba(0,0,0,0.1); border-radius: 8px; transform: scale(0.95); }
+        .player-top { background-color: #ff758f; box-shadow: 0 4px 8px rgba(255, 117, 143, 0.4); }
+        .target-top { border: 3px dashed #ffb3c1; background-color: rgba(255, 179, 193, 0.2); }
+
+        #board-bottom { background-color: #f0f8ff; }
+        #board-bottom .cell-wall { background-color: #a1c4fd; box-shadow: inset 0 -3px 0 rgba(0,0,0,0.1); border-radius: 8px; transform: scale(0.95); }
+        .player-bottom { background-color: #73a4f5; box-shadow: 0 4px 8px rgba(115, 164, 245, 0.4); }
+        .target-bottom { border: 3px dashed #a1c4fd; background-color: rgba(161, 196, 253, 0.2); }
+
+        .entity {
+            position: absolute;
+            width: 20%;
+            height: 20%;
+            border-radius: 10px;
+            transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+            z-index: 10;
+            transform: scale(0.8);
+        }
+
+        .target {
+            z-index: 5;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.75); opacity: 0.7; }
+            50% { transform: scale(0.85); opacity: 1; }
+            100% { transform: scale(0.75); opacity: 0.7; }
+        }
+
+        /* Modal Transparan Fixed */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease;
+            z-index: 100;
+        }
+
+        .modal-content {
+            background-color: rgba(255, 255, 255, 0.7);
+            border: 2px solid rgba(255, 255, 255, 0.9);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            border-radius: 1.5rem;
+            padding: 2.5rem 1.5rem;
+            width: 85%;
+            max-width: 340px;
+            text-align: center;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        #loading {
+            position: fixed;
+            inset: 0;
+            background: #f8f9fa;
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-weight: 900;
+            font-size: 1.5rem;
+            color: #a1c4fd;
+        }
+
+        .danger-text {
+            color: #ff4d6d;
+            animation: heartbeat 1s infinite;
+        }
+
+        @keyframes heartbeat {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        /* Animasi Panah Tutorial & Hint */
+        .swipe-indicator-container {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+        }
+
+        .swipe-arrow {
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            opacity: 0;
+            transform: scale(0.5);
+            color: #9333ea; 
+        }
+
+        /* Jika hint sedang aktif, warnanya biru muda khas AI */
+        .hint-mode-arrow {
+            color: #73a4f5;
+        }
+
+        .animate-swipe-up { animation: swipeUp 1s ease-out; }
+        .animate-swipe-down { animation: swipeDown 1s ease-out; }
+        .animate-swipe-left { animation: swipeLeft 1s ease-out; }
+        .animate-swipe-right { animation: swipeRight 1s ease-out; }
+
+        @keyframes swipeUp { 0% { opacity: 0; transform: translateY(30px) scale(0.8); } 30% { opacity: 1; transform: translateY(10px) scale(1.1); } 70% { opacity: 1; transform: translateY(-20px) scale(1); } 100% { opacity: 0; transform: translateY(-40px) scale(0.8); } }
+        @keyframes swipeDown { 0% { opacity: 0; transform: translateY(-30px) scale(0.8); } 30% { opacity: 1; transform: translateY(-10px) scale(1.1); } 70% { opacity: 1; transform: translateY(20px) scale(1); } 100% { opacity: 0; transform: translateY(40px) scale(0.8); } }
+        @keyframes swipeLeft { 0% { opacity: 0; transform: translateX(30px) scale(0.8); } 30% { opacity: 1; transform: translateX(10px) scale(1.1); } 70% { opacity: 1; transform: translateX(-20px) scale(1); } 100% { opacity: 0; transform: translateX(-40px) scale(0.8); } }
+        @keyframes swipeRight { 0% { opacity: 0; transform: translateX(-30px) scale(0.8); } 30% { opacity: 1; transform: translateX(-10px) scale(1.1); } 70% { opacity: 1; transform: translateX(20px) scale(1); } 100% { opacity: 0; transform: translateX(40px) scale(0.8); } }
+
+    </style>
+</head>
+<body>
+
+    <!-- Loading AI -->
+    <div id="loading">
+        <span>Menyusun Kaca...</span>
+        <span class="text-xs font-bold text-gray-400 mt-2">Mencari puzzle berdasar seed</span>
+    </div>
+
+    <!-- Main Wrapper -->
+    <div class="main-wrapper px-4">
+
+        <!-- Header -->
+        <div class="w-full flex justify-between items-end mb-5">
+            <div class="leading-none">
+                <h1 class="text-4xl font-black text-[#ff758f] tracking-tight">Cermin</h1>
+                <h1 class="text-4xl font-black text-[#73a4f5] tracking-tight">Hardcore</h1>
+            </div>
+            <div class="flex flex-col items-end gap-1.5">
+                <div class="text-sm font-bold text-gray-400">Level <span id="level-display" class="text-2xl font-black text-gray-700">1</span></div>
+                <div class="bg-white rounded-lg px-3 py-1 shadow-sm border border-gray-100 flex items-center gap-1">
+                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Langkah:</span>
+                    <span id="step-display" class="text-lg font-black text-[#73a4f5]">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Area Permainan -->
+        <div class="w-full flex flex-col gap-2.5 relative" id="game-area">
+
+            <!-- Indikator Animasi Panah -->
+            <div id="tutorial-overlay" class="swipe-indicator-container hidden">
+                <div id="tutorial-arrow" class="swipe-arrow">
+                    <svg id="arrow-icon" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 19V5M5 12l7-7 7 7"/>
+                    </svg>
+                </div>
+            </div>
+
+            <div id="board-top" class="board-container">
+                <div id="grid-top" class="grid-bg"></div>
+            </div>
+
+            <div class="w-full h-1.5 bg-gradient-to-r from-[#ff758f] to-[#73a4f5] rounded-full opacity-40 my-1"></div>
+
+            <div id="board-bottom" class="board-container">
+                <div id="grid-bottom" class="grid-bg"></div>
+            </div>
+
+            <!-- Tombol Kontrol -->
+            <div class="flex justify-between mt-4 items-center w-full gap-2">
+                <button id="hint-btn" onclick="toggleHint()" class="flex-1 bg-gradient-to-r from-[#ff758f] to-[#73a4f5] text-white font-black py-2 px-1 rounded-xl text-[11px] sm:text-xs transition transform active:scale-95 shadow-sm text-center">
+                    Petunjuk AI
+                </button>
+                <button id="tutorial-btn" onclick="startTutorial()" class="flex-1 bg-purple-100 hover:bg-purple-200 text-purple-600 font-black py-2 px-1 rounded-xl text-[11px] sm:text-xs transition transform active:scale-95 shadow-sm text-center">
+                    Tutorial
+                </button>
+                <button onclick="restartLevel()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-600 font-black py-2 px-1 rounded-xl text-[11px] sm:text-xs transition transform active:scale-95 shadow-sm text-center">
+                    Ulangi
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Modal Status -->
+    <div id="status-modal" class="modal-overlay hidden">
+        <div class="modal-content flex flex-col items-center">
+            <h2 id="modal-title" class="text-4xl font-black mb-2">Status</h2>
+            <p id="modal-desc" class="text-sm font-bold text-gray-600 mb-8 leading-relaxed">Deskripsi</p>
+            <button id="modal-btn" class="text-white font-black py-3 px-8 rounded-full shadow-lg transition transform active:scale-95 text-lg w-full tracking-wide">
+                Tombol
+            </button>
+        </div>
+    </div>
+
+    <!-- Toast Notif -->
+    <div id="toast" class="fixed bottom-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs font-bold px-5 py-3 rounded-full shadow-lg opacity-0 pointer-events-none transition-opacity duration-300 z-[300] text-center w-[90%] max-w-[300px]"></div>
+
+    <script>
+        // --- WEB AUDIO API (SISTEM SUARA) ---
+        let audioCtx;
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        document.addEventListener('touchstart', initAudio, { once: true, passive: true });
+        document.addEventListener('mousedown', initAudio, { once: true, passive: true });
+
+        function playSound(type) {
+            if (!audioCtx || audioCtx.state !== 'running') return;
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+
+            if (type === 'move') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.exponentialRampToValueAtTime(600, now + 0.1);
+                gainNode.gain.setValueAtTime(0.2, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'bump') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(80, now + 0.1);
+                gainNode.gain.setValueAtTime(0.3, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'win') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.setValueAtTime(523.25, now + 0.1);
+                osc.frequency.setValueAtTime(659.25, now + 0.2);
+                osc.frequency.setValueAtTime(783.99, now + 0.3);
+                gainNode.gain.setValueAtTime(0.2, now);
+                gainNode.gain.linearRampToValueAtTime(0, now + 0.5);
+                osc.start(now);
+                osc.stop(now + 0.5);
+            } else if (type === 'fail') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.4);
+                gainNode.gain.setValueAtTime(0.2, now);
+                gainNode.gain.linearRampToValueAtTime(0, now + 0.4);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            }
+        }
+
+        const SIZE = 5;
+        let currentLevel = 1;
+        let isMoving = false;
+
+        let maxSteps = 0;
+        let stepsLeft = 0;
+        let levelData = null;
+
+        const HINT_UNLOCK_FAILS = 1; 
+        let failCount = 0;
+        
+        let isTutorialMode = false;
+        let tutorialTimer = null;
+
+        let isHintActive = false;
+        let hintTimer = null;
+
+        let state = { top: { p: {x:0,y:0} }, bottom: { p: {x:0,y:0} } };
+
+        const topContainer = document.getElementById('board-top');
+        const bottomContainer = document.getElementById('board-bottom');
+        const levelDisplay = document.getElementById('level-display');
+        const stepDisplay = document.getElementById('step-display');
+        const loadingScreen = document.getElementById('loading');
+
+        const statusModal = document.getElementById('status-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalDesc = document.getElementById('modal-desc');
+        const modalBtn = document.getElementById('modal-btn');
+        const gameArea = document.getElementById('game-area');
+
+        let playerTopDOM, playerBottomDOM;
+
+        function saveProgress(lvl) {
+            try { localStorage.setItem('cermin_hardcore_level', lvl); } catch(e) {}
+        }
+        function loadProgress() {
+            try { const saved = localStorage.getItem('cermin_hardcore_level'); if (saved) return parseInt(saved); } catch(e) {}
+            return 1;
+        }
+
+        let seedStr = 1;
+        function seedRandom(s) { seedStr = s; }
+        function random() {
+            let t = seedStr += 0x6D2B79F5;
+            t = Math.imul(t ^ t >>> 15, t | 1);
+            t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+            return ((t ^ t >>> 14) >>> 0) / 4294967296;
+        }
+
+        function isWall(x, y, walls) {
+            if (x < 0 || x >= SIZE || y < 0 || y >= SIZE) return true;
+            return walls.some(w => w.x === x && w.y === y);
+        }
+
+        function simulateSlide(x, y, dx, dy, walls) {
+            let nx = x; let ny = y;
+            while (!isWall(nx + dx, ny + dy, walls)) { nx += dx; ny += dy; }
+            return { x: nx, y: ny };
+        }
+
+        function createRandomWalls(count) {
+            let walls = [];
+            while (walls.length < count) {
+                let wx = Math.floor(random() * SIZE);
+                let wy = Math.floor(random() * SIZE);
+                if (!walls.some(w => w.x === wx && w.y === wy)) walls.push({ x: wx, y: wy });
+            }
+            return walls;
+        }
+
+        function generateLevelData(lvl) {
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    let bestPuzzle = null;
+                    let targetMinDepth = Math.min(3 + Math.floor(lvl / 2), 15);
+                    let internalSeed = lvl * 8888;
+
+                    while (!bestPuzzle) {
+                        seedRandom(internalSeed);
+                        let attempts = 0;
+
+                        while(!bestPuzzle && attempts < 100) {
+                            attempts++;
+                            let tWalls = createRandomWalls(4 + Math.floor(random() * 4));
+                            let bWalls = createRandomWalls(4 + Math.floor(random() * 4));
+                            let tStart = { x: Math.floor(random() * SIZE), y: Math.floor(random() * SIZE) };
+                            let bStart = { x: Math.floor(random() * SIZE), y: Math.floor(random() * SIZE) };
+                            
+                            if (isWall(tStart.x, tStart.y, tWalls) || isWall(bStart.x, bStart.y, bWalls)) continue;
+
+                            let visited = new Set();
+                            let queue = [{ t: tStart, b: bStart, depth: 0 }];
+                            let stateKey = (t, b) => `${t.x},${t.y},${b.x},${b.y}`;
+                            visited.add(stateKey(tStart, bStart));
+                            let furthest = null;
+                            const dirs = [{x:0,y:-1}, {x:0,y:1}, {x:-1,y:0}, {x:1,y:0}];
+
+                            while (queue.length > 0) {
+                                let curr = queue.shift();
+                                if (!furthest || curr.depth > furthest.depth) furthest = curr;
+
+                                for (let d of dirs) {
+                                    let nextT = simulateSlide(curr.t.x, curr.t.y, d.x, d.y, tWalls);
+                                    let nextB = simulateSlide(curr.b.x, curr.b.y, -d.x, -d.y, bWalls);
+
+                                    if ((nextT.x !== curr.t.x || nextT.y !== curr.t.y) || (nextB.x !== curr.b.x || nextB.y !== curr.b.y)) {
+                                        let key = stateKey(nextT, nextB);
+                                        if (!visited.has(key)) {
+                                            visited.add(key);
+                                            queue.push({ t: nextT, b: nextB, depth: curr.depth + 1 });
+                                        }
+                                    }
+                                }
+                            }
+                            if (furthest && furthest.depth >= targetMinDepth) {
+                                bestPuzzle = {
+                                    top: { p: { ...tStart }, t: { ...furthest.t }, walls: tWalls },
+                                    bottom: { p: { ...bStart }, t: { ...furthest.b }, walls: bWalls },
+                                    minSteps: furthest.depth
+                                };
+                            }
+                        }
+                        if(!bestPuzzle) internalSeed++;
+                    }
+                    resolve(bestPuzzle);
+                }, 10);
+            });
+        }
+
+        async function initLevel(lvl) {
+            loadingScreen.style.display = 'flex';
+            statusModal.classList.add('hidden');
+            levelDisplay.innerText = lvl === 0 ? '0' : lvl;
+
+            if(lvl === 0) {
+                levelData = getTutorialLevelData();
+                maxSteps = 20;
+            } else {
+                levelData = await generateLevelData(lvl);
+                maxSteps = levelData.minSteps;
+            }
+
+            resetStateToStart();
+            renderBoard('top', topContainer, levelData.top);
+            renderBoard('bottom', bottomContainer, levelData.bottom);
+            updatePlayerPosition(playerTopDOM, state.top.p);
+            updatePlayerPosition(playerBottomDOM, state.bottom.p);
+            loadingScreen.style.display = 'none';
+        }
+
+        function resetStateToStart() {
+            statusModal.classList.add('hidden');
+            stopHint(); // Matikan hint saat reset
+            state.top.p = { ...levelData.top.p };
+            state.bottom.p = { ...levelData.bottom.p };
+            stepsLeft = maxSteps;
+            updateStepUI();
+            updatePlayerPosition(playerTopDOM, state.top.p);
+            updatePlayerPosition(playerBottomDOM, state.bottom.p);
+        }
+
+        function updateStepUI() {
+            stepDisplay.innerText = stepsLeft;
+            if(stepsLeft <= 2) {
+                stepDisplay.classList.add('danger-text');
+                stepDisplay.classList.remove('text-[#73a4f5]');
+            } else {
+                stepDisplay.classList.remove('danger-text');
+                stepDisplay.classList.add('text-[#73a4f5]');
+            }
+        }
+
+        function renderBoard(type, container, data) {
+            const gridBg = container.querySelector('.grid-bg');
+            gridBg.innerHTML = '';
+            container.querySelectorAll('.entity').forEach(e => e.remove());
+
+            for(let y=0; y<SIZE; y++) {
+                for(let x=0; x<SIZE; x++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    if(data.walls.some(w => w.x === x && w.y === y)) cell.classList.add('cell-wall');
+                    gridBg.appendChild(cell);
+                }
+            }
+
+            const target = document.createElement('div');
+            target.className = `entity target target-${type}`;
+            target.style.left = `${data.t.x * 20}%`;
+            target.style.top = `${data.t.y * 20}%`;
+            container.appendChild(target);
+
+            const player = document.createElement('div');
+            player.className = `entity player-${type}`;
+            container.appendChild(player);
+
+            if(type === 'top') playerTopDOM = player;
+            else playerBottomDOM = player;
+        }
+
+        function updatePlayerPosition(domElement, pos) {
+            if(!domElement) return;
+            domElement.style.left = `${pos.x * 20}%`;
+            domElement.style.top = `${pos.y * 20}%`;
+        }
+
+        function showModal(type) {
+            statusModal.classList.remove('hidden');
+            stopHint();
+
+            if(type === 'win') {
+                playSound('win');
+                modalTitle.innerText = "Sempurna!";
+                modalTitle.className = "text-4xl font-black mb-2 text-[#73a4f5]";
+                modalDesc.innerText = `Luar biasa, kamu menyelesaikannya tepat ${maxSteps} langkah.`;
+                modalBtn.innerText = "Level Berikutnya";
+                modalBtn.className = "bg-[#73a4f5] hover:bg-[#5b8ce0] text-white font-black py-3 px-8 rounded-full shadow-lg transition transform active:scale-95 text-lg w-full tracking-wide";
+                modalBtn.onclick = () => {
+                    currentLevel++;
+                    saveProgress(currentLevel);
+                    failCount = 0; 
+                    initLevel(currentLevel);
+                };
+            } else {
+                playSound('fail');
+                failCount++;
+                
+                modalTitle.innerText = "Kehabisan Langkah";
+                modalTitle.className = "text-3xl font-black mb-2 text-[#ff758f]";
+                modalDesc.innerHTML = "Jalur ini tidak optimal. Gunakan tembok sebagai penahan agar posisinya sinkron.";
+                modalBtn.innerText = "Coba Lagi";
+                modalBtn.className = "bg-[#ff758f] hover:bg-[#e8637c] text-white font-black py-3 px-8 rounded-full shadow-lg transition transform active:scale-95 text-lg w-full tracking-wide";
+                modalBtn.onclick = restartLevel;
+            }
+        }
+
+        function handleMove(dx, dy) {
+            if(isMoving || !levelData || stepsLeft <= 0) return;
+            if(!isTutorialMode && statusModal.classList.contains('hidden') === false) return;
+
+            initAudio();
+
+            // Jika hint sedang aktif, bersihkan timer agar animasi panah hilang sementara saat kita gerak
+            if(isHintActive) {
+                clearTimeout(hintTimer);
+                document.getElementById('tutorial-overlay').classList.add('hidden');
+            }
+
+            const newTopPos = simulateSlide(state.top.p.x, state.top.p.y, dx, dy, levelData.top.walls);
+            const newBottomPos = simulateSlide(state.bottom.p.x, state.bottom.p.y, -dx, -dy, levelData.bottom.walls);
+
+            if(newTopPos.x === state.top.p.x && newTopPos.y === state.top.p.y &&
+               newBottomPos.x === state.bottom.p.x && newBottomPos.y === state.bottom.p.y) {
+                playSound('bump');
+                // Jika nubruk, panggil animasi hint lagi
+                if(isHintActive) hintTimer = setTimeout(loopHint, 200);
+                return;
+            }
+
+            playSound('move');
+            isMoving = true;
+            stepsLeft--;
+            updateStepUI();
+
+            state.top.p = newTopPos;
+            state.bottom.p = newBottomPos;
+
+            updatePlayerPosition(playerTopDOM, state.top.p);
+            updatePlayerPosition(playerBottomDOM, state.bottom.p);
+
+            setTimeout(() => {
+                isMoving = false;
+                checkWinCondition();
+                
+                // Jika masih dalam mode Hint dan belum menang/kalah, re-kalkulasi rute cerdas!
+                if(isHintActive && statusModal.classList.contains('hidden')) {
+                    loopHint();
+                }
+            }, 200);
+        }
+
+        function checkWinCondition() {
+            const topWin = (state.top.p.x === levelData.top.t.x && state.top.p.y === levelData.top.t.y);
+            const bottomWin = (state.bottom.p.x === levelData.bottom.t.x && state.bottom.p.y === levelData.bottom.t.y);
+
+            if(topWin && bottomWin) showModal('win');
+            else if (stepsLeft <= 0) showModal('fail');
+        }
+
+        function restartLevel() {
+            if(isTutorialMode) stopTutorial();
+            resetStateToStart();
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.style.opacity = '1';
+            setTimeout(() => { toast.style.opacity = '0'; }, 3500);
+        }
+
+        // --- SISTEM PETUNJUK AI BARU (PANAH INTERAKTIF) ---
+        function toggleHint() {
+            if (failCount < HINT_UNLOCK_FAILS) {
+                let sisa = HINT_UNLOCK_FAILS - failCount;
+                showToast(`Masa mau nyerah? Masih ada sisa ${sisa} kali gagal, coba lagi ya!`);
+                return;
+            }
+
+            if(isTutorialMode) stopTutorial();
+
+            if (isHintActive) {
+                stopHint();
+                showToast("Petunjuk AI Dimatikan.");
+            } else {
+                isHintActive = true;
+                showToast("Petunjuk AI Aktif! Ikuti arah panah.");
+                loopHint();
+            }
+        }
+
+        function loopHint() {
+            if(!isHintActive || isMoving || isTutorialMode || stepsLeft <= 0) return;
+            
+            // AI RE-KALKULASI (BUG LAMA DIPERBAIKI: AI sekarang menghitung dari "state" pemain saat ini)
+            const sol = solvePuzzle(levelData);
+            
+            if(sol && sol.length > 0) {
+                const nextMove = sol[0];
+                playArrowAnimation(nextMove.x, nextMove.y, true);
+                
+                // Ulangi animasi panah setiap 1.5 detik jika pemain tidak bereaksi
+                clearTimeout(hintTimer);
+                hintTimer = setTimeout(loopHint, 1500);
+            } else {
+                // Jika tidak ada jalan lagi (salah melangkah parah)
+                stopHint();
+                if(stepsLeft > 0) showToast("Jalur ini sudah buntu. Silakan Ulangi level.");
+            }
+        }
+
+        function stopHint() {
+            isHintActive = false;
+            clearTimeout(hintTimer);
+            document.getElementById('tutorial-overlay').classList.add('hidden');
+            document.getElementById('tutorial-arrow').classList.remove('hint-mode-arrow');
+        }
+
+        // --- ALGORITMA BFS (PERBAIKAN DYNAMIC RECALCULATION) ---
+        function solvePuzzle(data) {
+            const dirs = [{x:0,y:-1},{x:0,y:1},{x:-1,y:0},{x:1,y:0}];
+            const key = (t, b) => `${t.x},${t.y},${b.x},${b.y}`;
+            
+            // PERBAIKAN: Gunakan posisi state saat ini, BUKAN posisi data awal!
+            const start = { t: {...state.top.p}, b: {...state.bottom.p} };
+            const goal = { t: data.top.t, b: data.bottom.t };
+
+            if(start.t.x===goal.t.x && start.t.y===goal.t.y && start.b.x===goal.b.x && start.b.y===goal.b.y) return [];
+
+            let visited = new Map();
+            visited.set(key(start.t, start.b), null);
+            let queue = [{t: start.t, b: start.b, path: []}];
+
+            while(queue.length > 0) {
+                let curr = queue.shift();
+                
+                // Jika pencarian terlalu dalam dari batas langkah, abaikan (mencegah memory leak)
+                if(curr.path.length > stepsLeft) continue;
+
+                for(let d of dirs) {
+                    let nt = simulateSlide(curr.t.x, curr.t.y, d.x, d.y, data.top.walls);
+                    let nb = simulateSlide(curr.b.x, curr.b.y, -d.x, -d.y, data.bottom.walls);
+                    let k = key(nt, nb);
+                    if(!visited.has(k)) {
+                        let newPath = [...curr.path, d];
+                        visited.set(k, true);
+                        if(nt.x===goal.t.x && nt.y===goal.t.y && nb.x===goal.b.x && nb.y===goal.b.y) return newPath;
+                        queue.push({t: nt, b: nb, path: newPath});
+                    }
+                }
+            }
+            return null; // Buntu
+        }
+
+        // --- TUTORIAL & FUNGSI ANIMASI PANAH BERSAMA ---
+        function playArrowAnimation(dx, dy, isHint = false) {
+            const overlay = document.getElementById('tutorial-overlay');
+            const arrow = document.getElementById('tutorial-arrow');
+            const icon = document.getElementById('arrow-icon');
+            
+            overlay.classList.remove('hidden');
+            
+            // Reset animasi
+            arrow.className = 'swipe-arrow'; 
+            void arrow.offsetWidth; // Memicu reflow DOM agar animasi mengulang
+
+            // Beda warna jika sedang mode Hint AI
+            if(isHint) arrow.classList.add('hint-mode-arrow');
+            
+            if(dy === -1) { icon.style.transform = 'rotate(0deg)'; arrow.classList.add('animate-swipe-up'); }
+            if(dy === 1) { icon.style.transform = 'rotate(180deg)'; arrow.classList.add('animate-swipe-down'); }
+            if(dx === -1) { icon.style.transform = 'rotate(-90deg)'; arrow.classList.add('animate-swipe-left'); }
+            if(dx === 1) { icon.style.transform = 'rotate(90deg)'; arrow.classList.add('animate-swipe-right'); }
+        }
+
+        function getTutorialLevelData() {
+            return {
+                top: { p: { x: 0, y: 2 }, t: { x: 2, y: 0 }, walls: [{x:4,y:2},{x:1,y:0},{x:0,y:3},{x:0,y:1},{x:3,y:1}] },
+                bottom: { p: { x: 0, y: 4 }, t: { x: 1, y: 4 }, walls: [{x:0,y:3},{x:2,y:0},{x:4,y:4},{x:0,y:2},{x:0,y:1}] },
+                minSteps: 20
+            };
+        }
+
+        const TUTORIAL_MOVES = [{"x":1,"y":0},{"x":0,"y":1},{"x":1,"y":0},{"x":0,"y":-1},{"x":-1,"y":0},{"x":0,"y":-1},{"x":1,"y":0},{"x":0,"y":-1},{"x":1,"y":0},{"x":0,"y":1},{"x":-1,"y":0},{"x":0,"y":1},{"x":-1,"y":0},{"x":0,"y":-1},{"x":1,"y":0},{"x":0,"y":1},{"x":1,"y":0},{"x":0,"y":-1},{"x":-1,"y":0},{"x":0,"y":-1}];
+
+        function startTutorial() {
+            if(isHintActive) stopHint();
+            stopTutorial();
+            isTutorialMode = true;
+            currentLevel = 0;
+            levelDisplay.innerText = '0';
+            statusModal.classList.add('hidden');
+
+            levelData = getTutorialLevelData();
+            maxSteps = 20;
+
+            resetStateToStart();
+            renderBoard('top', topContainer, levelData.top);
+            renderBoard('bottom', bottomContainer, levelData.bottom);
+            updatePlayerPosition(playerTopDOM, state.top.p);
+            updatePlayerPosition(playerBottomDOM, state.bottom.p);
+
+            showToast('Perhatikan panah yang muncul...');
+
+            let step = 0;
+            function playNext() {
+                if(!isTutorialMode || step >= TUTORIAL_MOVES.length) {
+                    stopTutorial();
+                    return;
+                }
+                const d = TUTORIAL_MOVES[step];
+                playArrowAnimation(d.x, d.y, false);
+
+                // Auto-hide animasi di tutorial
+                setTimeout(() => { if(isTutorialMode) document.getElementById('tutorial-overlay').classList.add('hidden'); }, 800);
+
+                tutorialTimer = setTimeout(() => {
+                    if(!isTutorialMode) return;
+                    handleMove(d.x, d.y);
+                    step++;
+                    tutorialTimer = setTimeout(playNext, 1000); // jeda lebih santai
+                }, 400);
+            }
+            tutorialTimer = setTimeout(playNext, 1000);
+        }
+
+        function stopTutorial() {
+            isTutorialMode = false;
+            document.getElementById('tutorial-overlay').classList.add('hidden');
+            if(tutorialTimer) { clearTimeout(tutorialTimer); tutorialTimer = null; }
+        }
+
+        // --- KONTROL SWIPE ---
+        let touchStartX = 0;
+        let touchStartY = 0;
+        const swipeThreshold = 25;
+
+        gameArea.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+            touchStartY = e.changedTouches[0].screenY;
+        }, { passive: true });
+
+        gameArea.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+        }, { passive: false });
+
+        gameArea.addEventListener('touchend', (e) => {
+            if(isMoving || (!isTutorialMode && statusModal.classList.contains('hidden') === false)) return;
+
+            let dx = e.changedTouches[0].screenX - touchStartX;
+            let dy = e.changedTouches[0].screenY - touchStartY;
+
+            if (Math.abs(dx) > swipeThreshold || Math.abs(dy) > swipeThreshold) {
+                if (isTutorialMode) stopTutorial();
+
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    if (dx > 0) handleMove(1, 0); else handleMove(-1, 0);
+                } else {
+                    if (dy > 0) handleMove(0, 1); else handleMove(0, -1);
+                }
+            }
+        }, { passive: true });
+
+        document.addEventListener('keydown', (e) => {
+            if(isMoving || (!isTutorialMode && statusModal.classList.contains('hidden') === false)) return;
+
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                e.preventDefault();
+                if (isTutorialMode) stopTutorial();
+                if (e.key === 'ArrowUp') handleMove(0, -1);
+                if (e.key === 'ArrowDown') handleMove(0, 1);
+                if (e.key === 'ArrowLeft') handleMove(-1, 0);
+                if (e.key === 'ArrowRight') handleMove(1, 0);
+            }
+        });
+
+        window.onload = () => {
+            currentLevel = loadProgress();
+            initLevel(currentLevel);
+        };
+    </script>
+</body>
+</html>
+
+
